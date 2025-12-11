@@ -44,19 +44,15 @@ const VideoInput: React.FC<VideoInputProps> = ({ onVideoSelected, videoPreviewUr
           ></path>
         </svg>
         <span>Selecionar Vídeo</span>
-
-        {/* INPUT REVISADO PARA COMPATIBILIDADE iOS */}
         <input
           id="video-upload"
           ref={fileInputRef}
           type="file"
-          accept="video/mp4, video/mov, video/*"
+          accept="video/*"
           onChange={handleFileChange}
           className="hidden"
-          capture="camera"
         />
       </label>
-
       {videoPreviewUrl && (
         <div className="w-full mt-4 flex flex-col items-center">
           <video
@@ -75,11 +71,8 @@ const VideoInput: React.FC<VideoInputProps> = ({ onVideoSelected, videoPreviewUr
           </button>
         </div>
       )}
-
       {!videoPreviewUrl && (
-        <p className="text-gray-500 text-sm">
-          Apenas arquivos de vídeo são aceitos (.mp4, .mov, etc.)
-        </p>
+        <p className="text-gray-500 text-sm">Apenas arquivos de vídeo são aceitos (.mp4, .mov, etc.)</p>
       )}
     </div>
   );
@@ -95,84 +88,67 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleVideoSelected = useCallback(
-    (file: File | null) => {
-      setSelectedVideoFile(file);
+  const handleVideoSelected = useCallback((file: File | null) => {
+    setSelectedVideoFile(file);
+    if (videoPreviewUrl) {
+      URL.revokeObjectURL(videoPreviewUrl); // Clean up previous object URL
+    }
+    if (file) {
+      setVideoPreviewUrl(URL.createObjectURL(file));
+    } else {
+      setVideoPreviewUrl(null);
+    }
+    setFeedback(null); // Clear previous feedback
+    setError(null); // Clear previous error
+  }, [videoPreviewUrl]);
 
-      if (videoPreviewUrl) {
-        URL.revokeObjectURL(videoPreviewUrl);
-      }
-
-      if (file) {
-        const preview = URL.createObjectURL(file);
-        setVideoPreviewUrl(preview);
-      } else {
-        setVideoPreviewUrl(null);
-      }
-
-      setFeedback(null);
-      setError(null);
-    },
-    [videoPreviewUrl]
-  );
-
-  // NOVA VERSÃO COMPATÍVEL COM iOS (readAsArrayBuffer)
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-
       reader.onloadend = () => {
-        try {
-          const buffer = reader.result as ArrayBuffer;
-          const bytes = new Uint8Array(buffer);
-          let binary = '';
-          bytes.forEach((b) => (binary += String.fromCharCode(b)));
-          const base64String = window.btoa(binary);
+        if (typeof reader.result === 'string') {
+          // Extract base64 part only (remove data:mime/type;base64,)
+          const base64String = reader.result.split(',')[1];
           resolve(base64String);
-        } catch (err) {
-          reject(err);
+        } else {
+          reject(new Error('Failed to convert file to base64 string.'));
         }
       };
-
       reader.onerror = (error) => reject(error);
-
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataURL(file);
     });
   };
 
-  const handleGenerateFeedback = useCallback(
-    async () => {
-      if (!selectedVideoFile) {
-        setError('Por favor, faça upload de um vídeo primeiro.');
-        return;
-      }
+  const handleGenerateFeedback = useCallback(async () => {
+    if (!selectedVideoFile) {
+      setError('Por favor, faça upload de um vídeo primeiro.');
+      return;
+    }
 
-      setIsLoading(true);
-      setError(null);
-      setFeedback(null);
+    setIsLoading(true);
+    setError(null);
+    setFeedback(null);
 
-      try {
-        const base64Video = await convertFileToBase64(selectedVideoFile);
-        const videoMimeType = selectedVideoFile.type;
+    try {
+      const base64Video = await convertFileToBase64(selectedVideoFile);
+      const videoMimeType = selectedVideoFile.type;
 
-        const aiFeedback = await generateVideoFeedback(
-          { base64: base64Video, mimeType: videoMimeType },
-          prompt
-        );
-        setFeedback(aiFeedback);
-      } catch (err) {
-        console.error('Error in handleGenerateFeedback:', err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Ocorreu um erro ao gerar o feedback. Tente novamente.'
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [selectedVideoFile, prompt]
-  );
+      const aiFeedback = await generateVideoFeedback(
+        { base64: base64Video, mimeType: videoMimeType },
+        prompt
+      );
+      setFeedback(aiFeedback);
+    } catch (err) {
+      console.error('Error in handleGenerateFeedback:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Ocorreu um erro ao gerar o feedback. Tente novamente.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedVideoFile, prompt]);
 
   return (
     <div className="flex flex-col max-w-4xl w-full bg-white shadow-xl rounded-2xl overflow-hidden md:flex-row">
@@ -183,10 +159,7 @@ function App() {
             Torne-se Viral no Instagram e TikTok 10x Mais Fácil com IA
           </h1>
 
-          <VideoInput
-            onVideoSelected={handleVideoSelected}
-            videoPreviewUrl={videoPreviewUrl}
-          />
+          <VideoInput onVideoSelected={handleVideoSelected} videoPreviewUrl={videoPreviewUrl} />
 
           <div className="mt-8">
             <label htmlFor="prompt" className="block text-gray-700 text-lg font-semibold mb-2">
@@ -212,11 +185,10 @@ function App() {
             onClick={handleGenerateFeedback}
             disabled={isLoading || !selectedVideoFile}
             className={`w-full py-4 px-6 rounded-lg text-white font-bold text-lg transition-colors duration-300
-                        ${
-                          isLoading || !selectedVideoFile
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg'
-                        }`}
+                        ${isLoading || !selectedVideoFile
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg'
+              }`}
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -256,29 +228,28 @@ function App() {
         </h2>
         {feedback ? (
           <div className="prose prose-lg max-w-none text-gray-800 leading-relaxed">
+            {/* Render feedback as HTML, assuming AI provides markdown-like formatting that can be safely rendered */}
             <div
               dangerouslySetInnerHTML={{
                 __html: feedback
-                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                  .replace(/^- (.*)/gm, '<li>$1</li>')
-                  .replace(/^\d+\. (.*)/gm, '<li>$1</li>')
-                  .replace(/(<\/strong>)\n<li>/g, '$1<ul><li>')
-                  .replace(/(<\/li>)\n<strong>/g, '</li></ul><strong>')
-                  .replace(/(<\/li>)\n\n<li>/g, '</li></ul><strong>')
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
+                  .replace(/^- (.*)/gm, '<li>$1</li>') // Bullet points
+                  .replace(/^\d+\. (.*)/gm, '<li>$1</li>') // Numbered list items
+                  .replace(/(<\/strong>)\n<li>/g, '$1<ul><li>') // Start ul after bold
+                  .replace(/(<\/li>)\n<strong>/g, '</li></ul><strong>') // End ul before next bold section
+                  .replace(/(<\/li>)\n\n<li>/g, '</li></ul><strong>') // Fix for case where an empty line precedes a new list item and list formatting is already applied
                   .replace(/<li>.*?<\/li>/g, (match, offset, original) => {
+                    // Check if the list item is already inside <ul> or <ol>
                     const parentUl = original.substring(0, offset).lastIndexOf('<ul>');
                     const parentOl = original.substring(0, offset).lastIndexOf('<ol>');
-                    const lastListEnd = Math.max(
-                      original.substring(0, offset).lastIndexOf('</ul>'),
-                      original.substring(0, offset).lastIndexOf('</ol>')
-                    );
+                    const lastListEnd = Math.max(original.substring(0, offset).lastIndexOf('</ul>'), original.substring(0, offset).lastIndexOf('</ol>'));
                     if (parentUl > lastListEnd || parentOl > lastListEnd) {
-                      return match;
+                      return match; // Already inside a list
                     }
-                    if (match.match(/^- /)) {
+                    if (match.match(/^- /)) { // If it's a bullet point
                       return `<ul>${match}</ul>`;
                     }
-                    if (match.match(/^\d+\. /)) {
+                    if (match.match(/^\d+\. /)) { // If it's a numbered list
                       return `<ol>${match}</ol>`;
                     }
                     return match;
