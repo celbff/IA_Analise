@@ -25,9 +25,11 @@ jobs:
       - name: Install dependencies
         run: npm install
       
-      # PASSO 2: Constroi (Build) a aplicação
+     # PASSO 2: Constroi (Build) a aplicação
+# CORREÇÃO: Usar VITE_API_KEY para tentar cobrir o erro 'API_KEY is not defined'
       - name: Build
         env:
+    # 🎯 CORREÇÃO: Mudar o nome injetado para VITE_API_KEY
         VITE_API_KEY: ${{ secrets.GEMINI_API_KEY }} 
         run: npm run build
       
