@@ -26,12 +26,9 @@ jobs:
         run: npm install
       
       # PASSO 2: Constroi (Build) a aplicação
-      # É AQUI QUE INJETAMOS O SECRET COMO VARIÁVEL VITE_
       - name: Build
-        # 🎯 CORREÇÃO 1: Adicionar o prefixo 'VITE_' para o Vite conseguir ler
         env:
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        # 🎯 CORREÇÃO 2: Sintaxe YAML/Recuo ajustado
+        VITE_API_KEY: ${{ secrets.GEMINI_API_KEY }} 
         run: npm run build
       
       # PASSO 3: Faz o upload do resultado da compilação
