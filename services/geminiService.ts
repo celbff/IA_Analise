@@ -8,10 +8,15 @@ import { Part as CustomPart } from '../types';
  */
 const getGeminiClient = () => {
   // CRITICAL: API key must be obtained exclusively from process.env.API_KEY.
-  if (!process.env.API_KEY) {
-    throw new Error('API_KEY is not defined in environment variables.');
+  // 🎯 CORREÇÃO: Usar import.meta.env e o prefixo VITE_GEMINI_API_KEY, conforme padrão Vite/Deploy
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
+
+  if (!apiKey) {
+    // A mensagem de erro agora reflete o que o código está buscando
+    throw new Error('VITE_GEMINI_API_KEY is not defined in environment variables or missing VITE_ prefix.');
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Passa a chave obtida corretamente
+  return new GoogleGenAI({ apiKey });
 };
 
 /**
