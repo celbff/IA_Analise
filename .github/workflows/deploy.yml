@@ -21,15 +21,20 @@ jobs:
         with:
           node-version: 20
           
+      # PASSO 1: Instala as dependências
       - name: Install dependencies
         run: npm install
-        
+      
+      # PASSO 2: Constroi (Build) a aplicação
+      # É AQUI QUE INJETAMOS O SECRET COMO VARIÁVEL VITE_
       - name: Build
-        # AQUI ESTÁ O TRUQUE: Injetamos a chave secreta no momento do build
+        # 🎯 CORREÇÃO 1: Adicionar o prefixo 'VITE_' para o Vite conseguir ler
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        # 🎯 CORREÇÃO 2: Sintaxe YAML/Recuo ajustado
         run: npm run build
-        
+      
+      # PASSO 3: Faz o upload do resultado da compilação
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
